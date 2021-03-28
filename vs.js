@@ -2,6 +2,7 @@ const { getConfig } = require("./config");
 const { vswhere } = require("./tool");
 const child_process = require("child_process");
 const path = require("path");
+const chalk = require("chalk");
 
 // function iconvDecode(str) {
 //   const iconv = require("iconv-lite");
@@ -51,7 +52,36 @@ class VS {
     await config.set("vsInstanceId", vsInstanceId);
   }
 
-  async runInDevCmd(command) {
+  ninjaMatcher() {
+    return {
+      matchOut: (line) => {
+        const lnk = line.split(/(error\sLNK\d+:)/g);
+        if (lnk.length === 3) {
+          console.log(`| ${lnk[0]}${chalk.red(lnk[1])}${lnk[2]}`);
+          return;
+        }
+
+        const passMatcher = /(LINK\sPass\s\d:\scommand)\s(.*)\s(failed\s.*\swith\sthe\sfollowing\soutput:)/g;
+        const pass = [...line.matchAll(passMatcher)];
+        if (pass.length) {
+          const begin = pass[0][1];
+          const cmd = pass[0][2];
+          const end = pass[0][3];
+          console.log(`| ${chalk.red(begin)}`);
+          console.log(cmd.split(' ').map(x => '  ' + (x.startsWith('/') ? '' : '  ') + x).join('\n'));
+          console.log(`${chalk.red(end)}`);
+          return;
+        }
+
+        console.log(`| ${line}`);
+      },
+      matchErr: (line) => {
+        console.log(`| ${line}`);
+      },
+    };
+  }
+
+  async runInDevCmd(command, { matchOut, matchErr }) {
     const devCmdPath = await this._getDevCmd();
     await new Promise((resolve, reject) => {
       const proc = child_process.spawn(
@@ -61,18 +91,8 @@ class VS {
       );
       const rlout = require("readline").createInterface({ input: proc.stdout });
       const rlerr = require("readline").createInterface({ input: proc.stderr });
-      rlout.on("line", (line) => {
-        console.log(`out: ${line}`);
-      });
-      rlerr.on("line", (line) => {
-        console.log(`err: ${line}`);
-      });
-      // proc.stdout.on("data", (data) => {
-      //   process.stdout.write(`${data}`);
-      // });
-      // proc.stderr.on("data", (data) => {
-      //   process.stderr.write(`${data}`);
-      // });
+      rlout.on("line", matchOut);
+      rlerr.on("line", matchErr);
       proc.on("close", (code) => {
         console.log(`child process exited with code ${code}`);
         resolve();

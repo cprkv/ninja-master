@@ -16,7 +16,7 @@ async function handleBuild(argv) {
   const comand = commandLine.join(" ");
   console.log(`running ${comand}`);
   const vs = await getVS();
-  await vs.runInDevCmd(comand);
+  await vs.runInDevCmd(comand, vs.ninjaMatcher());
   console.log("ready!");
 }
 
