@@ -1,0 +1,34 @@
+{
+  "name": "ninja-master",
+  "version": "1.0.0",
+  "description": "more close ninja integration for cmake and windows",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cprkv/ninja-master.git"
+  },
+  "keywords": [
+    "ninja",
+    "cmake",
+    "windows"
+  ],
+  "bin": {
+    "ninja-master": "./index.js"
+  },
+  "author": "Vadim Chuprakov",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cprkv/ninja-master/issues"
+  },
+  "homepage": "https://github.com/cprkv/ninja-master#readme",
+  "dependencies": {
+    "extract-zip": "^2.0.1",
+    "moment": "^2.29.1",
+    "superagent": "^6.1.0",
+    "tmp": "^0.2.1",
+    "yargs": "^16.2.0"
+  }
+}
