@@ -53,19 +53,26 @@ class VS {
 
   async runInDevCmd(command) {
     const devCmdPath = await this._getDevCmd();
-    console.log(`'("${devCmdPath}") & (${command})'`);
     await new Promise((resolve, reject) => {
       const proc = child_process.spawn(
         `cmd.exe`,
         ["/c", `("${devCmdPath}") & (${command})`],
         { windowsVerbatimArguments: true }
       );
-      proc.stdout.on("data", (data) => {
-        process.stdout.write(`${data}`);
+      const rlout = require("readline").createInterface({ input: proc.stdout });
+      const rlerr = require("readline").createInterface({ input: proc.stderr });
+      rlout.on("line", (line) => {
+        console.log(`out: ${line}`);
       });
-      proc.stderr.on("data", (data) => {
-        process.stderr.write(`${data}`);
+      rlerr.on("line", (line) => {
+        console.log(`err: ${line}`);
       });
+      // proc.stdout.on("data", (data) => {
+      //   process.stdout.write(`${data}`);
+      // });
+      // proc.stderr.on("data", (data) => {
+      //   process.stderr.write(`${data}`);
+      // });
       proc.on("close", (code) => {
         console.log(`child process exited with code ${code}`);
         resolve();
@@ -76,12 +83,7 @@ class VS {
   async _getDevCmd() {
     const product = await this._getSelectedProduct();
     const installPath = product.installationPath;
-    const devCmd = path.join(
-      installPath,
-      "Common7",
-      "Tools",
-      "vsdevcmd.bat"
-    );
+    const devCmd = path.join(installPath, "Common7", "Tools", "vsdevcmd.bat");
     return devCmd;
   }
 

@@ -3,11 +3,20 @@
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
 const { dataDirectory } = require("./utils");
-const { tools } = require("./tool");
+const { tools, ninja } = require("./tool");
 const { getVS } = require("./vs");
 
 async function handleBuild(argv) {
-  console.log(argv);
+  const commandLine = [await ninja.installedPath()];
+  if (argv.args) {
+    for (const arg of argv.args) {
+      commandLine.push(arg);
+    }
+  }
+  const comand = commandLine.join(" ");
+  console.log(`running ${comand}`);
+  const vs = await getVS();
+  await vs.runInDevCmd(comand);
   console.log("ready!");
 }
 
@@ -78,7 +87,6 @@ async function handleSetVS(args) {
   } else {
     await vs.setVS(args.ver);
   }
-  await vs.runInDevCmd('cl');
   console.log("done");
 }
 
