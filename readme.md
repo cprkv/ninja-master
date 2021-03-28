@@ -5,12 +5,14 @@ more close ninja integration for cmake and windows
 
 ## TODO
 
+- [ ] arguments parser for rest arguments
 - [ ] cmake integration
 - [ ] more error problem matchers
 - [ ] test on other vs releases
 - [ ] choose x64/x86
-- [ ] more human-friendly description of the tool
-- [ ] add simple search for older visual studio products
+- [ ] human-friendly description of the tool
+- [X] add simple search for older visual studio products
+- [ ] add icons
 
 ## installation
 
@@ -35,6 +37,7 @@ ninja-master build
 
 ```
 Commands:
+  ninja-master cmake [dir]           run cmake generator             [aliases: cm]
   ninja-master build [args..]        run ninja
   ninja-master info                  environment info
   ninja-master fetch                 updates release cache
