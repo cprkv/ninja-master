@@ -99,9 +99,22 @@ function remove(path) {
   });
 }
 
+async function copyToDataDirectory(file, resultName) {
+  const p = path.join(await dataDirectory(), resultName);
+  return new Promise((resolve, reject) => {
+    fs.copyFile(file, p, (err) => {
+      if (err) {
+        return reject(err);
+      }
+      resolve();
+    });
+  });
+}
+
 module.exports = {
   remove,
   stat,
+  copyToDataDirectory,
   dataDirectory,
   jsonFile,
   downloadFile,
