@@ -5,6 +5,7 @@ const { hideBin } = require("yargs/helpers");
 const { dataDirectory } = require("./utils");
 const { tools, ninja } = require("./tool");
 const { getVS } = require("./vs");
+const which = require("which");
 
 async function handleBuild(argv) {
   const commandLine = [await ninja.installedPath()];
@@ -14,6 +15,25 @@ async function handleBuild(argv) {
     }
   }
   const comand = commandLine.join(" ");
+  console.log(`running ${comand}`);
+  const vs = await getVS();
+  await vs.runInDevCmd(comand, vs.ninjaMatcher());
+  console.log("ready!");
+}
+
+async function handleAny(argv) {
+  const comand = argv.cmd;
+  console.log(`running ${comand}`);
+  const vs = await getVS();
+  await vs.runInDevCmd(comand, {
+    matchOut: console.log,
+    matchErr: console.log,
+  });
+  console.log("ready!");
+}
+
+async function handleCmake(argv) {
+  const comand = `cmake -DCMAKE_MAKE_PROGRAM="${await ninja.installedPath()}" -GNinja ${argv.dir}`;
   console.log(`running ${comand}`);
   const vs = await getVS();
   await vs.runInDevCmd(comand, vs.ninjaMatcher());
@@ -94,6 +114,7 @@ async function main() {
   const parser = yargs(hideBin(process.argv))
     .command({
       command: "build [args..]",
+      aliases: ['b'],
       desc: "run ninja",
       builder: (yargs) => yargs,
       handler: handleBuild,
@@ -139,6 +160,20 @@ async function main() {
           type: "string",
         }),
       handler: handleSetVS,
+    })
+    .command({
+      command: "any <cmd>",
+      aliases: ["a"],
+      desc: "run any command from dev cmd",
+      builder: (yargs) => yargs,
+      handler: handleAny,
+    })
+    .command({
+      command: "cmake <dir>",
+      aliases: ["cm"],
+      desc: "run cmake generation from dev cmd for directory <dir>",
+      builder: (yargs) => yargs,
+      handler: handleCmake,
     })
     .demandCommand()
     .strict()

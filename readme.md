@@ -9,6 +9,7 @@ more close ninja integration for cmake and windows
 - [ ] test on other vs releases
 - [ ] choose x64/x86
 - [ ] more human-friendly description of the tool
+- [ ] add simple search for older visual studio products
 
 ## installation
 
