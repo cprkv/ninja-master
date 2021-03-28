@@ -4,6 +4,7 @@ Ninja Master
 more close ninja integration for cmake and windows 
 
 ## TODO
+
 - [ ] cmake integration
 - [ ] more error problem matchers
 - [ ] test on other vs releases
@@ -13,6 +14,8 @@ more close ninja integration for cmake and windows
 
 ## installation
 
+*remark*: no installed ninja required - everything works in isolated environment.
+
 ```
 npm i -g https://github.com/cprkv/ninja-master.git
 ninja-master install
@@ -20,7 +23,6 @@ ninja-master install
 
 ## build your project
 
-**TODO (not works yet)**
 ```
 cd your-cmake-project
 mkdir build
