@@ -3,23 +3,8 @@
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
 const { dataDirectory } = require("./utils");
-const { Tool } = require("./tool");
-
-const ninja = new Tool({
-  name: "ninja",
-  exeName: "ninja.exe",
-  github: "ninja-build/ninja",
-  filePattern: /win\.zip/g,
-  needsExtract: true,
-});
-const vswhere = new Tool({
-  name: "vswhere",
-  exeName: "vswhere.exe",
-  github: "microsoft/vswhere",
-  filePattern: /\.exe/g,
-  needsExtract: false,
-});
-const tools = [ninja, vswhere];
+const { tools } = require("./tool");
+const { getVS } = require("./vs");
 
 async function handleBuild(argv) {
   console.log(argv);
@@ -33,6 +18,10 @@ async function handleInfo() {
     console.log(`  awailable ${tool.name} versions:`);
     console.log(await tool.versions());
   }
+  const vs = await getVS();
+  console.log("  visual studio products:");
+  console.log(await vs.getProducts());
+  console.log(`  dev cmd path: ${await vs._getDevCmd()}`);
 }
 
 async function handleFetch() {
@@ -80,6 +69,19 @@ async function handleRemove(args) {
   console.log("done");
 }
 
+async function handleSetVS(args) {
+  const vs = await getVS();
+  if (!args.ver) {
+    const producs = await vs.getProducts();
+    console.log("  visual studio products:");
+    console.log(producs);
+  } else {
+    await vs.setVS(args.ver);
+  }
+  await vs.runInDevCmd('cl');
+  console.log("done");
+}
+
 async function main() {
   const parser = yargs(hideBin(process.argv))
     .command({
@@ -93,7 +95,7 @@ async function main() {
     .command({
       command: "install [tool] [ver]",
       aliases: ["i"],
-      desc: "install ninja release",
+      desc: "install tool",
       builder: (yargs) =>
         yargs
           .positional("tool", {
@@ -119,6 +121,16 @@ async function main() {
           type: "string",
         }),
       handler: handleRemove,
+    })
+    .command({
+      command: "setvs [ver]",
+      desc: "select visual studio release",
+      builder: (yargs) =>
+        yargs.positional("ver", {
+          describe: "visual studio name, if empty just prints all available",
+          type: "string",
+        }),
+      handler: handleSetVS,
     })
     .demandCommand()
     .strict()

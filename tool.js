@@ -39,11 +39,26 @@ class Tool {
     await this.toolReleaseCache.write(res.body);
   }
 
-  async versions() {
+  async installedVersion() {
     let installed;
     try {
       installed = await this.installedToolCache.read();
     } catch (_) {}
+    return installed;
+  }
+
+  async installedPath() {
+    const installedToolPath = path.join(await dataDirectory(), this.exeName);
+    try {
+      await stat(installedToolPath);
+    } catch (_) {
+      throw `can't stat ${installedToolPath}, probably some error while installing...`;
+    }
+    return installedToolPath;
+  }
+
+  async versions() {
+    const installed = await this.installedVersion();
     const releases = await this._getReleases();
     const str = [];
     for (const release of releases) {
@@ -55,11 +70,7 @@ class Tool {
   }
 
   async install(version) {
-    let installed;
-    try {
-      installed = await this.installedToolCache.read();
-    } catch (_) {}
-
+    const installed = await this.installedVersion();
     if (version) {
       if (installed && installed == version) {
         console.log(`version ${version} already installed!`);
@@ -104,9 +115,7 @@ class Tool {
     const releaseUrl = matchReleases[0].url;
 
     console.log(`downloading ${releaseUrl}...`);
-    const tmpFilePath = await createTmpFile(
-      this.needsExtract ? ".zip" : null
-    );
+    const tmpFilePath = await createTmpFile(this.needsExtract ? ".zip" : null);
     await downloadFile(releaseUrl, tmpFilePath);
 
     console.log(`temporary file downloaded to ${tmpFilePath}`);
@@ -117,26 +126,15 @@ class Tool {
       await copyToDataDirectory(tmpFilePath, this.exeName);
     }
 
-    const installedToolPath = path.join(await dataDirectory(), this.exeName);
-    try {
-      await stat(installedToolPath);
-    } catch (_) {
-      throw `can't stat ${installedToolPath}, probably some error while downloading...`;
-    }
-
+    const installedToolPath = await this.installedPath();
     await this.installedToolCache.write(release.tag);
     console.log(`${this.name} installed to ${installedToolPath}`);
   }
 
   async remove() {
-    let installed;
-    try {
-      installed = await this.installedToolCache.read();
-    } catch (_) {}
-
+    const installed = await this.installedVersion();
     if (!installed) {
-      console.log(`no ${this.name} versions is currently installed!`);
-      return;
+      throw `no ${this.name} versions is currently installed!`;
     }
 
     const installedToolPath = path.join(await dataDirectory(), this.exeName);
@@ -156,7 +154,10 @@ class Tool {
       releases = await this.toolReleaseCache.read();
     }
     return releases
-      .filter((release) => release.assets && release.assets.length && !release.prerelease)
+      .filter(
+        (release) =>
+          release.assets && release.assets.length && !release.prerelease
+      )
       .map((release) => ({
         tag: release.tag_name,
         date: release.published_at,
@@ -169,6 +170,25 @@ class Tool {
   }
 }
 
+const ninja = new Tool({
+  name: "ninja",
+  exeName: "ninja.exe",
+  github: "ninja-build/ninja",
+  filePattern: /win\.zip/g,
+  needsExtract: true,
+});
+const vswhere = new Tool({
+  name: "vswhere",
+  exeName: "vswhere.exe",
+  github: "microsoft/vswhere",
+  filePattern: /\.exe/g,
+  needsExtract: false,
+});
+const tools = [ninja, vswhere];
+
 module.exports = {
   Tool,
+  tools,
+  ninja,
+  vswhere,
 };
