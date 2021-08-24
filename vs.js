@@ -48,7 +48,7 @@ const childProcessOutput = (cmd) =>
 class VS {
   async _init() {
     this.vswherePath = await vswhere.installedPath();
-    this.vswhereProductFilter = `-products * -format json -utf8 -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64`;
+    this.vswhereProductFilter = `-products * -format json -utf8 -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -prerelease`;
     this.vswhereLegacyProductFilter = `-products * -format json -utf8 -legacy`;
   }
 
