@@ -1,7 +1,5 @@
 #!/usr/bin/env node
 
-const yargs = require("yargs/yargs");
-const { hideBin } = require("yargs/helpers");
 const { dataDirectory, executeBatFile } = require("./utils");
 const { tools, ninja, vcpkg } = require("./tool");
 const { getVS } = require("./vs");
@@ -51,21 +49,15 @@ async function handleVcpkg(argv) {
 }
 
 async function handleCmakePresets() {
-  const vs = await getVS();
-  const env = await vs.getEnvironment();
-  const CMAKE_MAKE_PROGRAM = await ninja.installedPath();
-  const presetFileName = "CMakeUserPresets.json";
-  await createDefaultOrUpdateCmakePreset(
-    env,
-    CMAKE_MAKE_PROGRAM,
-    presetFileName
-  );
+  await createDefaultOrUpdateCmakePreset();
   console.log("ready!");
 }
 
 async function handleCmake(argv) {
+  const cmakeArguments = argv.cmd.join(" ");
   const CMAKE_MAKE_PROGRAM = await ninja.installedPath();
-  const comand = `cmake -DCMAKE_MAKE_PROGRAM="${CMAKE_MAKE_PROGRAM}" -GNinja ${argv.dir}`;
+  const CMAKE_TOOLCHAIN_FILE = await vcpkg.toolchainPath();
+  const comand = `cmake -DCMAKE_MAKE_PROGRAM="${CMAKE_MAKE_PROGRAM}" -DCMAKE_TOOLCHAIN_FILE="${CMAKE_TOOLCHAIN_FILE}" -GNinja ${cmakeArguments}`;
   console.log(`running ${comand}`);
   const vs = await getVS();
   await vs.runInDevCmd(comand, vs.ninjaMatcher());
@@ -147,113 +139,128 @@ async function handleSetVS(args) {
   console.log("done");
 }
 
-async function main() {
-  let needHelp = false;
-  const parser = yargs(hideBin(process.argv))
-    .command({
-      command: "build [args..]",
-      aliases: ["b"],
-      desc: "run ninja",
-      builder: (yargs) => yargs,
-      handler: handleBuild,
-    })
-    .command("info", "environment info", (yargs) => yargs, handleInfo)
-    .command("fetch", "updates release cache", (yargs) => yargs, handleFetch)
-    .command({
-      command: "preset",
-      aliases: "p",
-      desc: "dump cmake preset for ninja/fix current preset to use with ninja",
-      builder: (yargs) => yargs,
-      handler: handleCmakePresets,
-    })
-    .command({
-      command: "install [tool] [ver]",
-      aliases: ["i"],
-      desc: "install tool",
-      builder: (yargs) =>
-        yargs
-          .positional("tool", {
-            describe: "tool name, if empty installs all",
-            choices: tools.map((x) => x.name),
-            type: "string",
-          })
-          .positional("ver", {
-            describe:
-              "version tag (run info command to get available versions). if empty, latest choosen",
-            type: "string",
-          }),
-      handler: handleInstall,
-    })
-    .command({
-      command: "remove [tool]",
-      aliases: ["rm"],
-      desc: "removes tool",
-      builder: (yargs) =>
-        yargs.positional("tool", {
-          describe: "tool name, if empty removes all",
-          choices: tools.map((x) => x.name),
-          type: "string",
-        }),
-      handler: handleRemove,
-    })
-    .command({
-      command: "setvs [ver]",
-      desc: "select visual studio release",
-      builder: (yargs) =>
-        yargs.positional("ver", {
-          describe: "visual studio name, if empty just prints all available",
-          type: "string",
-        }),
-      handler: handleSetVS,
-    })
-    .command({
-      command: "any <cmd..>",
-      aliases: ["a"],
-      desc: "run any command from dev cmd",
-      builder: (yargs) => yargs,
-      handler: handleAny,
-    })
-    .command({
-      command: "vcpkg <cmd..>",
-      aliases: ["pkg"],
-      desc: "run vcpkg command from dev cmd",
-      builder: (yargs) => yargs,
-      handler: handleVcpkg,
-    })
-    .command({
-      command: "cmake <dir>",
-      aliases: ["cm"],
-      desc: "run cmake generation from dev cmd for directory <dir>",
-      builder: (yargs) => yargs,
-      handler: handleCmake,
-    })
-    .command({
-      command: "help",
-      aliases: ["h"],
-      builder: (yargs) => yargs,
-      handler: () => (needHelp = true),
-    })
-    .help(false)
-    .demandCommand()
-    .locale("en")
-    .scriptName("ninja-master")
-    .strict()
-    .fail((msg, err, args) => {
-      if (msg) {
-        console.error("(ERROR)", msg);
-        needHelp = true;
-      } else if (err) {
-        console.error("(ERROR)", err);
-      } else {
-        console.error("(ERROR)", "wtf?");
-      }
-    });
+function showHelp() {
+  console.log(
+    "ninja-master usage:\n" +
+      "\n" +
+      "  ninja-master build [args..]        run ninja with arguments\n" +
+      "    aliases: b\n" +
+      "\n" +
+      "  ninja-master info                  environment info\n" +
+      "  ninja-master fetch                 updates release cache\n" +
+      "\n" +
+      "  ninja-master install [tool] [ver]  install tool\n" +
+      "    aliases: i\n" +
+      "      [tool]   - tool name, if empty installs all\n" +
+      "      [ver]    - version tag (run `info` command to get available versions). if empty, latest choosen\n" +
+      "\n" +
+      "  ninja-master remove [tool]         remove tool\n" +
+      "    aliases: rm\n" +
+      "      [tool]   - tool name, if empty removes all\n" +
+      "\n" +
+      "  ninja-master setvs [ver]           select visual studio release\n" +
+      "      [ver]    - visual studio name, if empty just prints all available\n" +
+      "\n" +
+      "  ninja-master any <cmd..>           run any command from dev cmd\n" +
+      "\n" +
+      "  ninja-master preset                dump cmake preset for ninja/fix current preset to use with ninja\n" +
+      "    aliases: p\n" +
+      "\n" +
+      "  ninja-master vcpkg <args..>        run vcpkg command from dev cmd args with args\n" +
+      "    aliases: pkg\n" +
+      "\n" +
+      "  ninja-master cmake <args..>        run cmake from dev cmd with args\n" +
+      "    aliases: cm\n" +
+      "\n"
+  );
+  process.exit(1);
+}
 
-  await parser.parse();
+function getArgument(index) {
+  if (2 + index >= process.argv.length) {
+    console.log("invalid usage");
+    showHelp();
+  }
+  return process.argv[2 + index];
+}
 
-  if (needHelp) {
-    parser.showHelp();
+function getOptArgument(index) {
+  if (2 + index >= process.argv.length) {
+    return null;
+  }
+  return process.argv[2 + index];
+}
+
+function getRestArguments(index) {
+  if (2 + index >= process.argv.length) {
+    console.log("invalid usage");
+    showHelp();
+  }
+  return process.argv.slice(2 + index);
+}
+
+function getOptRestArguments(index) {
+  if (2 + index >= process.argv.length) {
+    return [];
+  }
+  return process.argv.slice(2 + index);
+}
+
+async function mainMyArgs() {
+  switch (getArgument(0)) {
+    case "build":
+    case "b":
+      return handleBuild({ args: getOptRestArguments(1) });
+
+    case "info":
+      return handleInfo();
+
+    case "fetch":
+      return handleFetch();
+
+    case "install":
+    case "i":
+      return await handleInstall({
+        tool: getOptArgument(1),
+        ver: getOptArgument(2),
+      });
+
+    case "remove":
+    case "rm":
+      return await handleRemove({ tool: getOptArgument(1) });
+
+    case "setvs":
+      return await handleRemove({ ver: getOptArgument(1) });
+
+    case "setvs":
+      return await handleRemove({ ver: getOptArgument(1) });
+
+    case "any":
+      return await handleAny({ cmd: getRestArguments(1) });
+
+    case "vcpkg":
+    case "pkg":
+      return await handleVcpkg({ cmd: getRestArguments(1) });
+
+    case "cmake":
+    case "cm":
+      return await handleCmake({ cmd: getRestArguments(1) });
+
+    case "preset":
+    case "p":
+      return await handleCmakePresets();
+
+    case "cmake":
+    case "cm":
+      return await handleCmake({ cmd: getRestArguments(1) });
+
+    case "help":
+      showHelp();
+
+    default:
+      console.log("unknown command");
+      showHelp();
   }
 }
 
-main().catch((err) => console.error(err));
+mainMyArgs().catch((err) => console.error(err));

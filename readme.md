@@ -5,6 +5,7 @@ more close ninja integration for cmake and windows
 
 ## TODO
 
+- [x] vcpkg
 - [x] cmake presets
 - [ ] test on other vs releases
 - [ ] choose x64/x86

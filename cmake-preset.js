@@ -1,16 +1,27 @@
 const { jsonFileAbstract, hasFile } = require("./utils");
+const { ninja, vcpkg } = require("./tool");
+const { getVS } = require("./vs");
 
-const ninjaBaseConfigurePreset = {
-  name: "ninja-base",
-  generator: "Ninja",
-  hidden: true,
-};
+async function getBaseConfigurePresetWithEnv() {
+  const vs = await getVS();
+  const environment = await vs.getEnvironment();
+  const CMAKE_MAKE_PROGRAM = await ninja.installedPath();
+  const CMAKE_TOOLCHAIN_FILE = await vcpkg.toolchainPath();
 
-function getBaseConfigurePresetWithEnv(environment, CMAKE_MAKE_PROGRAM) {
-  return Object.assign({}, ninjaBaseConfigurePreset, {
+  if (!(await hasFile(CMAKE_MAKE_PROGRAM))) {
+    throw `error: ${CMAKE_MAKE_PROGRAM} not found`;
+  }
+  if (!(await hasFile(CMAKE_TOOLCHAIN_FILE))) {
+    throw `error: ${CMAKE_MAKE_PROGRAM} not found`;
+  }
+
+  return {
+    name: "ninja-base",
+    generator: "Ninja",
+    hidden: true,
     environment,
-    cacheVariables: { CMAKE_MAKE_PROGRAM },
-  });
+    cacheVariables: { CMAKE_MAKE_PROGRAM, CMAKE_TOOLCHAIN_FILE },
+  };
 }
 
 async function updatePreset(configurePreset, presetFileName) {
@@ -58,14 +69,9 @@ async function writeDefaultPreset(configurePreset, presetFileName) {
 }
 
 async function createDefaultOrUpdateCmakePreset(
-  environment,
-  CMAKE_MAKE_PROGRAM,
   presetFileName = "CMakeUserPresets.json"
 ) {
-  const configurePreset = getBaseConfigurePresetWithEnv(
-    environment,
-    CMAKE_MAKE_PROGRAM
-  );
+  const configurePreset = await getBaseConfigurePresetWithEnv();
   if (await hasFile(presetFileName)) {
     await updatePreset(configurePreset, presetFileName);
   } else {

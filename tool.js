@@ -238,6 +238,16 @@ class VCPkgTool extends Tool {
     await this.installedToolCache.write("");
   }
 
+  async toolchainPath() {
+    return path.join(
+      await dataDirectory(),
+      "vcpkg",
+      "scripts",
+      "buildsystems",
+      "vcpkg.cmake"
+    );
+  }
+
   static _parseHash(name) {
     const reg = name.match(/-g(?<hash>[0-9a-f]+)\.zip$/);
     if (!reg.groups || !reg.groups.hash || !reg.groups.hash.length) {
