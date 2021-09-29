@@ -1,7 +1,7 @@
 Ninja Master
 ============
 
-more close ninja integration for cmake and windows
+more close ninja integration for cmake, windows and vcpkg!
 
 ## TODO
 
