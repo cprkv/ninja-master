@@ -142,7 +142,10 @@ class VS {
     await new Promise((resolve, reject) => {
       const proc = child_process.spawn(
         `cmd.exe`,
-        ["/c", `%SYSTEMROOT%\\System32\\chcp.com 65001 && ("${devCmdPath}") & (cd "${process.cwd()}") & (${command})`],
+        [
+          "/c",
+          `%SYSTEMROOT%\\System32\\chcp.com 65001 && ("${devCmdPath}") & (cd "${process.cwd()}") & (${command})`,
+        ],
         { windowsVerbatimArguments: true }
       );
       const rlout = readline.createInterface({ input: proc.stdout });
@@ -160,6 +163,7 @@ class VS {
     const devCmdEnv = {};
     await this.runInDevCmd("SET", {
       matchOut: (line) => {
+        console.log(line);
         const cont = line.split("=");
         if (cont.length != 2 || !cont[0].length || !cont[1].length) return;
         devCmdEnv[cont[0].toLowerCase()] = cont[1];
@@ -216,8 +220,23 @@ class VS {
     }
     for (const p of products) {
       const tryPaths = [
-        path.join(p.installationPath, "Common7", "Tools", "vsdevcmd.bat"),
+        path.join(
+          p.installationPath,
+          "VC",
+          "Auxiliary",
+          "Build",
+          "vcvars64.bat"
+        ),
+        path.join(
+          p.installationPath,
+          "VC",
+          "Auxiliary",
+          "Build",
+          "vcvars32.bat"
+        ),
+        path.join(p.installationPath, "Common7", "Tools", "vsvars64.bat"),
         path.join(p.installationPath, "Common7", "Tools", "vsvars32.bat"),
+        path.join(p.installationPath, "Common7", "Tools", "vsdevcmd.bat"),
       ];
       for (const tp of tryPaths) {
         if (await hasFile(tp)) {

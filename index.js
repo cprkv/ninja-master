@@ -230,10 +230,7 @@ async function mainMyArgs() {
       return await handleRemove({ tool: getOptArgument(1) });
 
     case "setvs":
-      return await handleRemove({ ver: getOptArgument(1) });
-
-    case "setvs":
-      return await handleRemove({ ver: getOptArgument(1) });
+      return await handleSetVS({ ver: getOptArgument(1) });
 
     case "any":
       return await handleAny({ cmd: getRestArguments(1) });
@@ -249,10 +246,6 @@ async function mainMyArgs() {
     case "preset":
     case "p":
       return await handleCmakePresets();
-
-    case "cmake":
-    case "cm":
-      return await handleCmake({ cmd: getRestArguments(1) });
 
     case "help":
       showHelp();

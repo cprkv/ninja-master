@@ -94,6 +94,9 @@ const downloadFile = async (url, path) => {
   const res = await superagent
     .get(url)
     .set("User-Agent", "ninja-master")
+    .buffer(true)
+    .parse(superagent.parse["application/octet-stream"])
+    .redirects(8)
     .on("progress", (e) => {
       const bytes = e.total ? ` ${e.loaded}/${e.total} bytes` : "";
       console.log(`${e.direction}:${bytes} ${e.percent}%`);
