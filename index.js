@@ -2,8 +2,8 @@
 
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
-const { dataDirectory } = require("./utils");
-const { tools, ninja } = require("./tool");
+const { dataDirectory, executeBatFile } = require("./utils");
+const { tools, ninja, vcpkg } = require("./tool");
 const { getVS } = require("./vs");
 const { createDefaultOrUpdateCmakePreset } = require("./cmake-preset");
 const which = require("which");
@@ -27,6 +27,24 @@ async function handleAny(argv) {
   console.log(`running ${comand}`);
   const vs = await getVS();
   await vs.runInDevCmd(comand, {
+    matchOut: console.log,
+    matchErr: console.log,
+  });
+  console.log("ready!");
+}
+
+async function handleVcpkg(argv) {
+  const vcpkgArguments = argv.cmd;
+  const vcpkgPath = await vcpkg.installedPath();
+  console.log(`running vcpkg ${vcpkgArguments}`);
+
+  // const vs = await getVS();
+  // await vs.runInDevCmd(`\"${vcpkgPath}\" ${vcpkgArguments}`, {
+  //   matchOut: console.log,
+  //   matchErr: console.log,
+  // });
+
+  await executeBatFile(vcpkgPath, vcpkgArguments, {
     matchOut: console.log,
     matchErr: console.log,
   });
@@ -196,6 +214,13 @@ async function main() {
       handler: handleAny,
     })
     .command({
+      command: "vcpkg <cmd>",
+      aliases: ["pkg"],
+      desc: "run vcpkg command from dev cmd",
+      builder: (yargs) => yargs,
+      handler: handleVcpkg,
+    })
+    .command({
       command: "cmake <dir>",
       aliases: ["cm"],
       desc: "run cmake generation from dev cmd for directory <dir>",
@@ -210,7 +235,7 @@ async function main() {
         parser.showHelp();
       } else if (err) {
         console.error("(ERROR)", err);
-      } else {
+      } else {  
         console.error("(ERROR)", "wtf?");
       }
     });

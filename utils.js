@@ -2,27 +2,15 @@ const path = require("path");
 const fs = require("fs");
 const extract = require("extract-zip");
 const superagent = require("superagent");
+const child_process = require("child_process");
+const readline = require("readline");
 
-function stat(p) {
-  return new Promise((resolve, reject) => {
-    fs.stat(p, (err, stat) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve(stat);
-    });
-  });
+async function stat(p) {
+  return fs.promises.stat(p);
 }
 
-function mkdir(p) {
-  return new Promise((resolve, reject) => {
-    fs.mkdir(p, (err) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve();
-    });
-  });
+async function mkdir(p) {
+  await fs.promises.mkdir(p);
 }
 
 async function dataDirectory() {
@@ -35,6 +23,10 @@ async function dataDirectory() {
   }
 
   return p;
+}
+
+async function writeBuffer(p, buffer) {
+  await fs.promises.writeFile(p, buffer);
 }
 
 const jsonFileAbstract = {
@@ -76,17 +68,70 @@ const jsonFile = {
   },
 };
 
+function extractContentDispositionHeaderFilename(contentDisposition) {
+  if (!contentDisposition) {
+    return null;
+  }
+
+  const filenames = contentDisposition
+    .split(";")
+    .map((x) => x.trim())
+    .filter((x) => x.startsWith("filename="));
+
+  if (filenames.length != 1) {
+    return null;
+  }
+
+  const filenameProperty = filenames[0].split("=");
+  if (filenameProperty.length != 2) {
+    return null;
+  }
+
+  return filenameProperty[1];
+}
+
 const downloadFile = async (url, path) => {
-  return new Promise((resolve, reject) => {
-    superagent.get(url).pipe(fs.createWriteStream(path)).on("finish", resolve);
-  });
+  const res = await superagent
+    .get(url)
+    .set("User-Agent", "ninja-master")
+    .on("progress", (e) => {
+      const bytes = e.total ? ` ${e.loaded}/${e.total} bytes` : "";
+      console.log(`${e.direction}:${bytes} ${e.percent}%`);
+    });
+
+  if (!res.ok) {
+    const text = res.text
+      ? `, text: ${res.text}`
+      : res.body
+      ? `, text: ${res.body.toString()}`
+      : "";
+    throw new Error(
+      `error getting file ${url}: status code ${res.statusCode}${text}`
+    );
+  }
+
+  await writeBuffer(path, res.body);
+
+  const filename = extractContentDispositionHeaderFilename(
+    res.headers["content-disposition"]
+  );
+  if (!filename) {
+    console.warn(
+      `warn: failed to parse disposition header: ${contentDisposition}`
+    );
+    return "";
+  }
+
+  console.log(`filename: ${filename}`);
+
+  return filename;
 };
 
 const createTmpFile = (ext) => {
   const tmp = require("tmp");
   tmp.setGracefulCleanup();
   return new Promise((resolve, reject) => {
-    tmp.file({ postfix: ext, discardDescriptor: true }, function (err, path) {
+    tmp.file({ postfix: ext, discardDescriptor: true }, (err, path) => {
       if (err) {
         return reject(err);
       }
@@ -98,27 +143,17 @@ const createTmpFile = (ext) => {
 const extractToDataDirectory = async (from) =>
   await extract(from, { dir: await dataDirectory() });
 
-function remove(path) {
-  return new Promise((resolve, reject) => {
-    fs.unlink(path, (err) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve();
-    });
-  });
+async function remove(path) {
+  await fs.promises.rm(path, { recursive: true, force: true });
+}
+
+async function rename(a, b) {
+  await fs.promises.rename(a, b);
 }
 
 async function copyToDataDirectory(file, resultName) {
   const p = path.join(await dataDirectory(), resultName);
-  return new Promise((resolve, reject) => {
-    fs.copyFile(file, p, (err) => {
-      if (err) {
-        return reject(err);
-      }
-      resolve();
-    });
-  });
+  await fs.promises.copyFile(file, p);
 }
 
 async function hasFile(name) {
@@ -131,8 +166,30 @@ async function hasFile(name) {
   return s.isFile();
 }
 
+async function executeBatFile(pathToBatFile, args, { matchOut, matchErr }) {
+  return new Promise((resolve, reject) => {
+    const cmd = `%SYSTEMROOT%\\System32\\chcp.com 65001 && "${pathToBatFile}" ${args}`;
+    console.log(`spawning [cmd.exe /c ${cmd}]`);
+    const proc = child_process.spawn(`cmd.exe`, ["/c", cmd], {
+      windowsVerbatimArguments: true,
+    });
+    const rlout = readline.createInterface({ input: proc.stdout });
+    const rlerr = readline.createInterface({ input: proc.stderr });
+    rlout.on("line", matchOut);
+    rlerr.on("line", matchErr);
+    proc.on("close", (code) => {
+      console.log(`child process exited with code ${code}`);
+      if (code != 0) {
+        return reject();
+      }
+      resolve();
+    });
+  });
+}
+
 module.exports = {
   remove,
+  rename,
   stat,
   copyToDataDirectory,
   dataDirectory,
@@ -142,4 +199,5 @@ module.exports = {
   createTmpFile,
   extractToDataDirectory,
   hasFile,
+  executeBatFile,
 };

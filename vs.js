@@ -4,6 +4,7 @@ const child_process = require("child_process");
 const path = require("path");
 const chalk = require("chalk");
 const { stat, dataDirectory, hasFile } = require("./utils");
+const readline = require("readline");
 
 // function iconvDecode(str) {
 //   const iconv = require("iconv-lite");
@@ -144,8 +145,8 @@ class VS {
         ["/c", `("${devCmdPath}") & (cd "${process.cwd()}") & (${command})`],
         { windowsVerbatimArguments: true }
       );
-      const rlout = require("readline").createInterface({ input: proc.stdout });
-      const rlerr = require("readline").createInterface({ input: proc.stderr });
+      const rlout = readline.createInterface({ input: proc.stdout });
+      const rlerr = readline.createInterface({ input: proc.stderr });
       rlout.on("line", matchOut);
       rlerr.on("line", matchErr);
       proc.on("close", (code) => {

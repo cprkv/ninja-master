@@ -5,10 +5,12 @@ const {
   dataDirectory,
   jsonFile,
   remove,
+  rename,
   downloadFile,
   copyToDataDirectory,
   createTmpFile,
   extractToDataDirectory,
+  executeBatFile,
 } = require("./utils");
 const superagent = require("superagent");
 
@@ -116,7 +118,7 @@ class Tool {
 
     console.log(`downloading ${releaseUrl}...`);
     const tmpFilePath = await createTmpFile(this.needsExtract ? ".zip" : null);
-    await downloadFile(releaseUrl, tmpFilePath);
+    const originFilename = await downloadFile(releaseUrl, tmpFilePath);
 
     console.log(`temporary file downloaded to ${tmpFilePath}`);
 
@@ -125,6 +127,8 @@ class Tool {
     } else {
       await copyToDataDirectory(tmpFilePath, this.exeName);
     }
+
+    await this._installAdditionalActions(originFilename);
 
     const installedToolPath = await this.installedPath();
     await this.installedToolCache.write(release.tag);
@@ -144,6 +148,8 @@ class Tool {
 
   //--------------------
 
+  async _installAdditionalActions(originFilename) {}
+
   async _getReleases() {
     let releases;
     try {
@@ -156,17 +162,88 @@ class Tool {
     return releases
       .filter(
         (release) =>
-          release.assets && release.assets.length && !release.prerelease
+          ((release.assets && release.assets.length) ||
+            (this.needsExtract && release.zipball_url)) &&
+          !release.prerelease
       )
       .map((release) => ({
         tag: release.tag_name,
         date: release.published_at,
-        assets: release.assets.map((asset) => ({
-          type: asset.content_type,
-          name: asset.name,
-          url: asset.browser_download_url,
-        })),
+        assets:
+          release.assets && release.assets.length
+            ? release.assets.map((asset) => ({
+                type: asset.content_type,
+                name: asset.name,
+                url: asset.browser_download_url,
+              }))
+            : [{ type: "application/zip", url: release.zipball_url }],
       }));
+  }
+}
+
+class VCPkgTool extends Tool {
+  constructor(obj) {
+    super(obj);
+  }
+
+  async _installAdditionalActions(originFilename) {
+    console.log("additional installation actions on vcpkg!");
+
+    const dataDir = await dataDirectory();
+    const toolDir = path.join(dataDir, "vcpkg");
+
+    // rename stuff
+    {
+      const hash = VCPkgTool._parseHash(originFilename);
+      const extractedDir = path.join(dataDir, `microsoft-vcpkg-${hash}`);
+      console.log(`extractedDir: ${extractedDir}`);
+
+      try {
+        await this.remove(true);
+      } catch (err) {
+        console.warn(
+          `warn: can't remove ${toolDir}, probably it does not exists?`
+        );
+      }
+
+      await rename(extractedDir, toolDir);
+    }
+
+    await executeBatFile(
+      path.join(toolDir, "bootstrap-vcpkg.bat"),
+      "-disableMetrics",
+      {
+        matchOut: console.log,
+        matchErr: console.log,
+      }
+    );
+
+    console.log("additional installation actions on vcpkg done!");
+  }
+
+  async remove(silent = false) {
+    const installed = await this.installedVersion();
+    const installedToolPath = path.join(await dataDirectory(), "vcpkg");
+
+    try {
+      await remove(installedToolPath);
+    } catch (err) {
+      if (silent) {
+        console.warn(`warn: remove: ${err}`);
+      } else if (installed) {
+        throw err;
+      }
+    }
+
+    await this.installedToolCache.write("");
+  }
+
+  static _parseHash(name) {
+    const reg = name.match(/-g(?<hash>[0-9a-f]+)\.zip$/);
+    if (!reg.groups || !reg.groups.hash || !reg.groups.hash.length) {
+      throw `failed to parse hash from ${name}`;
+    }
+    return reg.groups.hash;
   }
 }
 
@@ -184,11 +261,18 @@ const vswhere = new Tool({
   filePattern: /\.exe/g,
   needsExtract: false,
 });
-const tools = [ninja, vswhere];
+const vcpkg = new VCPkgTool({
+  name: "vcpkg",
+  exeName: "vcpkg/vcpkg.exe",
+  github: "microsoft/vcpkg",
+  needsExtract: true,
+});
+const tools = [ninja, vswhere, vcpkg];
 
 module.exports = {
   Tool,
   tools,
   ninja,
   vswhere,
+  vcpkg,
 };
