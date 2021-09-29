@@ -1,5 +1,4 @@
-Ninja Master
-============
+# Ninja Master
 
 more close ninja integration for cmake, windows and vcpkg!
 
@@ -10,7 +9,7 @@ more close ninja integration for cmake, windows and vcpkg!
 - [ ] test on other vs releases
 - [ ] choose x64/x86
 - [ ] human-friendly description of the tool
-- [X] add simple search for older visual studio products
+- [x] add simple search for older visual studio products
 
 ## installation
 
@@ -47,25 +46,37 @@ cmake --build --preset ninja
 
 > hint: if you change visual studio version using `ninja-master setvs` command, you need to rerun command `ninja-master preset` to update preset and clean cmake cache!
 
-> hint: you can edit preset yourself as you wish, but do not touch `configurePresets[ninja-base]` object, please ^_^. if you run `ninja-master preset` it will try to change only that object, nothing else!
+> hint: you can edit preset yourself as you wish, but do not touch `configurePresets[ninja-base]` object, please ^\_^. if you run `ninja-master preset` it will try to change only that object, nothing else!
 
 ## commands
 
 ```
-Команды:
-  ninja-master build [args..]        run ninja                           [алиасы: b]
-  ninja-master info                  environment info
-  ninja-master fetch                 updates release cache
-  ninja-master preset                dump cmake preset for ninja/fix current preset 
-                                     to use with ninja                   [алиасы: p]
-  ninja-master install [tool] [ver]  install tool                        [алиасы: i]
-  ninja-master remove [tool]         removes tool                       [алиасы: rm]
-  ninja-master setvs [ver]           select visual studio release
-  ninja-master any <cmd>             run any command from dev cmd        [алиасы: a]
-  ninja-master cmake <dir>           run cmake generation from dev cmd for directory
-                                     <dir>                              [алиасы: cm]
+ninja-master build [args..]        run ninja with arguments
+  aliases: b
 
-Опции:
-  --help     Показать помощь                                           [булевый тип]
-  --version  Показать номер версии                                     [булевый тип]
+ninja-master info                  environment info
+ninja-master fetch                 updates release cache
+
+ninja-master install [tool] [ver]  install tool
+  aliases: i
+    [tool]   - tool name, if empty installs all
+    [ver]    - version tag (run `info` command to get available versions). if empty, latest choosen
+
+ninja-master remove [tool]         remove tool
+  aliases: rm
+    [tool]   - tool name, if empty removes all
+
+ninja-master setvs [ver]           select visual studio release
+    [ver]    - visual studio name, if empty just prints all available
+
+ninja-master any <cmd..>           run any command from dev cmd
+
+ninja-master preset                dump cmake preset for ninja/fix current preset to use with ninja
+  aliases: p
+
+ninja-master vcpkg <args..>        run vcpkg command from dev cmd args with args
+  aliases: pkg
+
+ninja-master cmake <args..>        run cmake from dev cmd with args
+  aliases: cm
 ```
