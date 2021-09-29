@@ -34,15 +34,31 @@ async function handleAny(argv) {
 
 async function handleCmakePresets() {
   const vs = await getVS();
-  const devCmdEnv = await vs.getEnvironment();
   const presetFileName = "CMakeUserPresets.json";
+  const ninjaBaseConfigurePreset = {
+    name: "ninja-base",
+    generator: "Ninja",
+    environment: await vs.getEnvironment(),
+  };
 
   if (await hasFile(presetFileName)) {
-    console.error("TODO: fix environment of file!!!");
+    const presetContents = await jsonFileAbstract.read(presetFileName);
+    if (!presetContents.configurePresets) {
+      presetContents.configurePresets = [];
+    }
+    const ninjaBase = presetContents.configurePresets.find(
+      (x) => x.name === "ninja-base"
+    );
+    if (ninjaBase) {
+      Object.assign(ninjaBase, ninjaBaseConfigurePreset);
+    } else {
+      presetContents.configurePresets.push(ninjaBaseConfigurePreset);
+    }
+    jsonFileAbstract.write(presetFileName, presetContents, true);
   } else {
     const presetContents = {
       version: 3,
-      cmakeMinimumRequired: { major: 3, minor: 21, patch: 0 },
+      cmakeMinimumRequired: { major: 3, minor: 20, patch: 0 },
       configurePresets: [
         {
           name: "ninja",
@@ -50,11 +66,7 @@ async function handleCmakePresets() {
           binaryDir: "${sourceDir}/.vscode/build",
           cacheVariables: {},
         },
-        {
-          name: "ninja-base",
-          generator: "Ninja",
-          environment: devCmdEnv,
-        },
+        ninjaBaseConfigurePreset,
       ],
       buildPresets: [
         {
