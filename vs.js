@@ -3,7 +3,7 @@ const { vswhere } = require("./tool");
 const child_process = require("child_process");
 const path = require("path");
 const chalk = require("chalk");
-const { stat } = require("./utils");
+const { stat, dataDirectory } = require("./utils");
 
 // function iconvDecode(str) {
 //   const iconv = require("iconv-lite");
@@ -106,7 +106,8 @@ class VS {
           }
         }
 
-        const passMatcher = /(LINK\sPass\s\d:\scommand)\s(.*)\s(failed\s.*\swith\sthe\sfollowing\soutput:)/g;
+        const passMatcher =
+          /(LINK\sPass\s\d:\scommand)\s(.*)\s(failed\s.*\swith\sthe\sfollowing\soutput:)/g;
         const pass = [...line.matchAll(passMatcher)];
         if (pass.length) {
           const begin = pass[0][1];
@@ -148,6 +149,31 @@ class VS {
         resolve();
       });
     });
+  }
+
+  async getEnvironment() {
+    const devCmdEnv = {};
+    await this.runInDevCmd("SET", {
+      matchOut: (line) => {
+        const cont = line.split("=");
+        if (cont.length != 2 || !cont[0].length || !cont[1].length) return;
+        devCmdEnv[cont[0].toLowerCase()] = cont[1];
+      },
+      matchErr: console.log,
+    });
+    const originEnv = process.env;
+    for (let key of Object.keys(originEnv)) {
+      key = key.toLowerCase();
+      if (!devCmdEnv.hasOwnProperty(key)) {
+        continue;
+      }
+      if (devCmdEnv[key] === originEnv[key]) {
+        delete devCmdEnv[key];
+      }
+    }
+    const data_dir = await dataDirectory();
+    devCmdEnv["path"] = data_dir + ";" + devCmdEnv["path"];
+    return devCmdEnv;
   }
 
   async _getDevCmd() {

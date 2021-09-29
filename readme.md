@@ -5,6 +5,7 @@ more close ninja integration for cmake and windows
 
 ## TODO
 
+- [ ] output cmake toolchain file to use it outside
 - [ ] arguments parser for rest arguments
 - [ ] cmake integration
 - [ ] more error problem matchers

@@ -2,7 +2,7 @@
 
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
-const { dataDirectory } = require("./utils");
+const { dataDirectory, hasFile, jsonFileAbstract } = require("./utils");
 const { tools, ninja } = require("./tool");
 const { getVS } = require("./vs");
 const which = require("which");
@@ -32,8 +32,48 @@ async function handleAny(argv) {
   console.log("ready!");
 }
 
+async function handleCmakePresets() {
+  const vs = await getVS();
+  const devCmdEnv = await vs.getEnvironment();
+  const presetFileName = "CMakeUserPresets.json";
+
+  if (await hasFile(presetFileName)) {
+    console.error("TODO: fix environment of file!!!");
+  } else {
+    const presetContents = {
+      version: 3,
+      cmakeMinimumRequired: { major: 3, minor: 21, patch: 0 },
+      configurePresets: [
+        {
+          name: "ninja",
+          inherits: ["ninja-base"],
+          binaryDir: "${sourceDir}/.vscode/build",
+          cacheVariables: {},
+        },
+        {
+          name: "ninja-base",
+          generator: "Ninja",
+          environment: devCmdEnv,
+        },
+      ],
+      buildPresets: [
+        {
+          name: "ninja",
+          configurePreset: "ninja",
+          inheritConfigureEnvironment: true,
+          targets: [],
+        },
+      ],
+    };
+    await jsonFileAbstract.write(presetFileName, presetContents, true);
+  }
+
+  console.log("ready!");
+}
+
 async function handleCmake(argv) {
-  const comand = `cmake -DCMAKE_MAKE_PROGRAM="${await ninja.installedPath()}" -GNinja ${argv.dir}`;
+  const CMAKE_MAKE_PROGRAM = await ninja.installedPath();
+  const comand = `cmake -DCMAKE_MAKE_PROGRAM="${CMAKE_MAKE_PROGRAM}" -GNinja ${argv.dir}`;
   console.log(`running ${comand}`);
   const vs = await getVS();
   await vs.runInDevCmd(comand, vs.ninjaMatcher());
@@ -114,13 +154,20 @@ async function main() {
   const parser = yargs(hideBin(process.argv))
     .command({
       command: "build [args..]",
-      aliases: ['b'],
+      aliases: ["b"],
       desc: "run ninja",
       builder: (yargs) => yargs,
       handler: handleBuild,
     })
     .command("info", "environment info", (yargs) => yargs, handleInfo)
     .command("fetch", "updates release cache", (yargs) => yargs, handleFetch)
+    .command({
+      command: "preset",
+      aliases: "p",
+      desc: "dump cmake preset for ninja/fix current preset to use with ninja",
+      builder: (yargs) => yargs,
+      handler: handleCmakePresets,
+    })
     .command({
       command: "install [tool] [ver]",
       aliases: ["i"],

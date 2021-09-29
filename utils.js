@@ -37,21 +37,21 @@ async function dataDirectory() {
   return p;
 }
 
-const jsonFile = {
-  write: async function (name, object) {
-    const p = path.join(await dataDirectory(), name);
-    return new Promise((resolve, reject) => {
-      fs.writeFile(p, JSON.stringify(object), "utf-8", (err) => {
+const jsonFileAbstract = {
+  write: (p, object, beautify) =>
+    new Promise((resolve, reject) => {
+      const str = beautify
+        ? JSON.stringify(object, null, 2)
+        : JSON.stringify(object);
+      fs.writeFile(p, str, "utf-8", (err) => {
         if (err) {
           return reject(err);
         }
         resolve();
       });
-    });
-  },
-  read: async function (name) {
-    const p = path.join(await dataDirectory(), name);
-    return new Promise((resolve, reject) => {
+    }),
+  read: (p) =>
+    new Promise((resolve, reject) => {
       fs.readFile(p, "utf-8", (err, data) => {
         if (err) {
           return reject(err);
@@ -62,7 +62,17 @@ const jsonFile = {
           reject(e);
         }
       });
-    });
+    }),
+};
+
+const jsonFile = {
+  write: async function (name, object) {
+    const p = path.join(await dataDirectory(), name);
+    return jsonFileAbstract.write(p, object);
+  },
+  read: async function (name) {
+    const p = path.join(await dataDirectory(), name);
+    return jsonFileAbstract.read(p);
   },
 };
 
@@ -111,13 +121,25 @@ async function copyToDataDirectory(file, resultName) {
   });
 }
 
+async function hasFile(name) {
+  let s;
+  try {
+    s = await stat(name);
+  } catch {
+    return false;
+  }
+  return s.isFile();
+}
+
 module.exports = {
   remove,
   stat,
   copyToDataDirectory,
   dataDirectory,
+  jsonFileAbstract,
   jsonFile,
   downloadFile,
   createTmpFile,
   extractToDataDirectory,
+  hasFile,
 };
