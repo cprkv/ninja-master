@@ -34,17 +34,17 @@ async function handleAny(argv) {
 async function handleVcpkg(argv) {
   const vcpkgArguments = argv.cmd.join(" ");
   const vcpkgPath = await vcpkg.installedPath();
-  // const vs = await getVS();
-  // await vs.runInDevCmd(`\"${vcpkgPath}\" ${vcpkgArguments}`, {
-  //   matchOut: console.log,
-  //   matchErr: console.log,
-  // });
-  try {
-    await executeBatFile(vcpkgPath, vcpkgArguments, {
-      matchOut: console.log,
-      matchErr: console.log,
-    });
-  } catch {}
+  const vs = await getVS();
+  await vs.runInDevCmd(`\"${vcpkgPath}\" ${vcpkgArguments}`, {
+    matchOut: console.log,
+    matchErr: console.log,
+  });
+  // try {
+  //   await executeBatFile(vcpkgPath, vcpkgArguments, {
+  //     matchOut: console.log,
+  //     matchErr: console.log,
+  //   });
+  // } catch {}
   console.log("ready!");
 }
 
