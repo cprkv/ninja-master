@@ -142,7 +142,7 @@ class VS {
     await new Promise((resolve, reject) => {
       const proc = child_process.spawn(
         `cmd.exe`,
-        ["/c", `("${devCmdPath}") & (cd "${process.cwd()}") & (${command})`],
+        ["/c", `%SYSTEMROOT%\\System32\\chcp.com 65001 && ("${devCmdPath}") & (cd "${process.cwd()}") & (${command})`],
         { windowsVerbatimArguments: true }
       );
       const rlout = readline.createInterface({ input: proc.stdout });

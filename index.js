@@ -23,7 +23,7 @@ async function handleBuild(argv) {
 }
 
 async function handleAny(argv) {
-  const comand = argv.cmd;
+  const comand = argv.cmd.join(" ");
   console.log(`running ${comand}`);
   const vs = await getVS();
   await vs.runInDevCmd(comand, {
@@ -34,20 +34,19 @@ async function handleAny(argv) {
 }
 
 async function handleVcpkg(argv) {
-  const vcpkgArguments = argv.cmd;
+  const vcpkgArguments = argv.cmd.join(" ");
   const vcpkgPath = await vcpkg.installedPath();
-  console.log(`running vcpkg ${vcpkgArguments}`);
-
   // const vs = await getVS();
   // await vs.runInDevCmd(`\"${vcpkgPath}\" ${vcpkgArguments}`, {
   //   matchOut: console.log,
   //   matchErr: console.log,
   // });
-
-  await executeBatFile(vcpkgPath, vcpkgArguments, {
-    matchOut: console.log,
-    matchErr: console.log,
-  });
+  try {
+    await executeBatFile(vcpkgPath, vcpkgArguments, {
+      matchOut: console.log,
+      matchErr: console.log,
+    });
+  } catch {}
   console.log("ready!");
 }
 
@@ -149,6 +148,7 @@ async function handleSetVS(args) {
 }
 
 async function main() {
+  let needHelp = false;
   const parser = yargs(hideBin(process.argv))
     .command({
       command: "build [args..]",
@@ -207,14 +207,14 @@ async function main() {
       handler: handleSetVS,
     })
     .command({
-      command: "any <cmd>",
+      command: "any <cmd..>",
       aliases: ["a"],
       desc: "run any command from dev cmd",
       builder: (yargs) => yargs,
       handler: handleAny,
     })
     .command({
-      command: "vcpkg <cmd>",
+      command: "vcpkg <cmd..>",
       aliases: ["pkg"],
       desc: "run vcpkg command from dev cmd",
       builder: (yargs) => yargs,
@@ -227,20 +227,33 @@ async function main() {
       builder: (yargs) => yargs,
       handler: handleCmake,
     })
+    .command({
+      command: "help",
+      aliases: ["h"],
+      builder: (yargs) => yargs,
+      handler: () => (needHelp = true),
+    })
+    .help(false)
     .demandCommand()
+    .locale("en")
+    .scriptName("ninja-master")
     .strict()
     .fail((msg, err, args) => {
       if (msg) {
         console.error("(ERROR)", msg);
-        parser.showHelp();
+        needHelp = true;
       } else if (err) {
         console.error("(ERROR)", err);
-      } else {  
+      } else {
         console.error("(ERROR)", "wtf?");
       }
     });
 
   await parser.parse();
+
+  if (needHelp) {
+    parser.showHelp();
+  }
 }
 
 main().catch((err) => console.error(err));
