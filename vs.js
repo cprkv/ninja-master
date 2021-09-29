@@ -3,7 +3,7 @@ const { vswhere } = require("./tool");
 const child_process = require("child_process");
 const path = require("path");
 const chalk = require("chalk");
-const { stat, dataDirectory } = require("./utils");
+const { stat, dataDirectory, hasFile } = require("./utils");
 
 // function iconvDecode(str) {
 //   const iconv = require("iconv-lite");
@@ -59,8 +59,12 @@ class VS {
     for (const p of products) {
       const begin = current.instanceId == p.instanceId ? "   X " : "     ";
       const id = `id: ${p.instanceId}`;
-      const end = p.displayName ? ` (${p.displayName})` : "";
-      result.push(begin + id + end);
+      const name = p.displayName ? ` (${p.displayName})` : "";
+      const cmd =
+        p.devCmd && !(await hasFile(p.devCmd))
+          ? ` (error: dev cmd not exists at ${p.devCmd})`
+          : "";
+      result.push(begin + id + name + cmd);
     }
     return result.join("\n");
   }
@@ -210,12 +214,21 @@ class VS {
       products.push(p);
     }
     for (const p of products) {
-      p.devCmd = path.join(
-        p.installationPath,
-        "Common7",
-        "Tools",
-        "vsdevcmd.bat"
-      );
+      const tryPaths = [
+        path.join(p.installationPath, "Common7", "Tools", "vsdevcmd.bat"),
+        path.join(p.installationPath, "Common7", "Tools", "vsvars32.bat"),
+      ];
+      for (const tp of tryPaths) {
+        if (await hasFile(tp)) {
+          p.devCmd = tp;
+          break;
+        }
+      }
+      if (!p.devCmd) {
+        console.error(
+          `WARN: dev cmd not found for product ${p.installationPath}`
+        );
+      }
     }
     for (const p of await checkFindOldProducts()) {
       products.push(p);

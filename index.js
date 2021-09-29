@@ -2,9 +2,10 @@
 
 const yargs = require("yargs/yargs");
 const { hideBin } = require("yargs/helpers");
-const { dataDirectory, hasFile, jsonFileAbstract } = require("./utils");
+const { dataDirectory } = require("./utils");
 const { tools, ninja } = require("./tool");
 const { getVS } = require("./vs");
+const { createDefaultOrUpdateCmakePreset } = require("./cmake-preset");
 const which = require("which");
 
 async function handleBuild(argv) {
@@ -34,52 +35,14 @@ async function handleAny(argv) {
 
 async function handleCmakePresets() {
   const vs = await getVS();
+  const env = await vs.getEnvironment();
+  const CMAKE_MAKE_PROGRAM = await ninja.installedPath();
   const presetFileName = "CMakeUserPresets.json";
-  const ninjaBaseConfigurePreset = {
-    name: "ninja-base",
-    generator: "Ninja",
-    environment: await vs.getEnvironment(),
-  };
-
-  if (await hasFile(presetFileName)) {
-    const presetContents = await jsonFileAbstract.read(presetFileName);
-    if (!presetContents.configurePresets) {
-      presetContents.configurePresets = [];
-    }
-    const ninjaBase = presetContents.configurePresets.find(
-      (x) => x.name === "ninja-base"
-    );
-    if (ninjaBase) {
-      Object.assign(ninjaBase, ninjaBaseConfigurePreset);
-    } else {
-      presetContents.configurePresets.push(ninjaBaseConfigurePreset);
-    }
-    jsonFileAbstract.write(presetFileName, presetContents, true);
-  } else {
-    const presetContents = {
-      version: 3,
-      cmakeMinimumRequired: { major: 3, minor: 20, patch: 0 },
-      configurePresets: [
-        {
-          name: "ninja",
-          inherits: ["ninja-base"],
-          binaryDir: "${sourceDir}/.vscode/build",
-          cacheVariables: {},
-        },
-        ninjaBaseConfigurePreset,
-      ],
-      buildPresets: [
-        {
-          name: "ninja",
-          configurePreset: "ninja",
-          inheritConfigureEnvironment: true,
-          targets: [],
-        },
-      ],
-    };
-    await jsonFileAbstract.write(presetFileName, presetContents, true);
-  }
-
+  await createDefaultOrUpdateCmakePreset(
+    env,
+    CMAKE_MAKE_PROGRAM,
+    presetFileName
+  );
   console.log("ready!");
 }
 
@@ -94,21 +57,26 @@ async function handleCmake(argv) {
 
 async function handleInfo() {
   console.log("ninja master environment info:");
-  console.log("  data directory:", await dataDirectory());
+  console.log();
+  console.log(`  data directory:\n    ${await dataDirectory()}`);
+  console.log();
   for (const tool of tools) {
     console.log(`  awailable ${tool.name} versions:`);
     console.log(await tool.versions());
+    console.log();
   }
   const vs = await getVS();
   console.log("  visual studio products:");
   console.log(await vs.getProducts());
-  console.log(`  dev cmd path: ${await vs._getDevCmd()}`);
+  console.log();
+  console.log(`  current dev cmd path:\n    ${await vs._getDevCmd()}`);
+  console.log();
 }
 
 async function handleFetch() {
   for (const tool of tools) {
     console.log(`fetching ${tool.name} versions...`);
-    console.log(await tool.fetch());
+    await tool.fetch();
   }
   console.log("done");
 }
